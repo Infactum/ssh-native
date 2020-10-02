@@ -1,0 +1,7 @@
+LIBRARY "ssh_native"
+
+EXPORTS
+GetClassObject
+DestroyObject
+GetClassNames
+SetPlatformCapabilities
