@@ -1,0 +1,56 @@
+name: CI
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        # Conan-center does not provide x86 packages and I'm too lazy to maintain them myself
+        # so there will be only x64 builds here
+        os: [windows-latest, ubuntu-18.04]
+        include:
+          - os: windows-latest
+            generator: VS16Win64
+          - os: ubuntu-18.04
+            generator: Ninja
+
+    steps:
+      - uses: actions/checkout@v2
+      
+      - uses: actions/setup-python@v2
+        with:
+          python-version: '3.x'
+      
+      - run: |
+          pip install wheel
+          pip install conan
+          conan profile new default --detect
+          
+      - run: conan profile update settings.compiler.libcxx=libstdc++11 default
+        if: runner.os == 'Linux'
+
+      - run: |
+          mkdir ${{ github.workspace }}/build && cd ${{ github.workspace }}/build
+          conan remote add bintray/infactum https://api.bintray.com/conan/infactum/public-conan
+          conan install ${{ github.workspace }}
+      
+      - uses: lukka/run-cmake@v2
+        id: runcmake_cmd
+        with:
+          buildDirectory: ${{ github.workspace }}/build
+          cmakeGenerator: ${{ matrix.generator }}
+          cmakeBuildType: Release
+      
+      - uses: actions/upload-artifact@v2
+        with:
+          name: windows-x64
+          path: ${{ github.workspace }}/build/bin/ssh_native.dll
+        if: runner.os == 'Windows'
+      
+      - uses: actions/upload-artifact@v2
+        with:
+          name: linux-x64
+          path: ${{ github.workspace }}/build/lib/libssh_native.so
+        if: runner.os == 'Linux'
